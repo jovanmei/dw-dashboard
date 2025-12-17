@@ -1,11 +1,22 @@
-# PySpark ETL Pipeline Dependencies
-# ===================================
+# Enhanced PySpark ETL Pipeline Dependencies
+# ==========================================
 #
-# This project uses PySpark for distributed data processing.
+# This project uses PySpark for distributed data processing with enhanced
+# data quality management, fraud detection, and interactive dashboards.
 # Install with: pip install -r requirements.txt
 #
 # Note: PySpark requires Java 8 or later. Make sure JAVA_HOME is set correctly.
 
+# Core ETL Dependencies
 pyspark>=3.5.0
-streamlit>=1.40.0
 pandas>=1.5.0
+
+# Enhanced Dashboard Dependencies
+streamlit>=1.28.0,<2.0.0
+plotly>=5.0.0
+numpy>=1.21.0
+
+# Optional: For advanced analytics (uncomment if needed)
+# scikit-learn>=1.0.0
+# matplotlib>=3.5.0
+# seaborn>=0.11.0
