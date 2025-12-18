@@ -268,10 +268,9 @@ def run_pipeline() -> None:
     print("  → Exporting Gold layer to CSV...")
     write_gold_dashboard_csv(dashboard_table, "exports/gold_customer_segment_monthly_csv")
     
-    # Save fraud detection results
-    if fraud_count > 0:
-        print("  → Saving fraud detection results...")
-        potential_fraud.coalesce(1).write.mode("overwrite").option("header", "true").csv("exports/potential_fraud_orders")
+    # Save fraud detection results (always save, even if empty)
+    print("  → Saving fraud detection results...")
+    potential_fraud.coalesce(1).write.mode("overwrite").option("header", "true").csv("exports/potential_fraud_orders")
 
     print("✓ Bronze, Silver, Gold layers ready for export")
     print("✓ Dashboard table ready for BI tools")

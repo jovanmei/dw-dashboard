@@ -583,15 +583,19 @@ def detect_potential_fraud_orders(df_orders_cleaned: DataFrame, df_order_items_c
                               "order_id", "left")
                         )
     
-    # Flag suspicious orders
+    # Flag suspicious orders with more realistic thresholds
     return (orders_with_items
             .withColumn("fraud_score",
-                       (when(col("total_amount_cleaned") > 5000, 2).otherwise(0) +  # High amount
+                       (when(col("total_amount_cleaned") > 2000, 3).otherwise(0) +  # High amount (lowered threshold)
+                        when(col("total_amount_cleaned") > 1000, 1).otherwise(0) +  # Medium high amount
                         when(col("days_since_last_order") < 1, 3).otherwise(0) +    # Same day orders
-                        when(col("total_quantity") > 50, 2).otherwise(0) +          # High quantity
-                        when(col("max_item_quantity") > 20, 1).otherwise(0)))       # High single item qty
+                        when(col("days_since_last_order") < 7, 1).otherwise(0) +    # Orders within a week
+                        when(col("total_quantity") > 20, 2).otherwise(0) +          # High quantity (lowered)
+                        when(col("total_quantity") > 10, 1).otherwise(0) +          # Medium quantity
+                        when(col("max_item_quantity") > 10, 2).otherwise(0) +       # High single item qty (lowered)
+                        when(col("max_item_quantity") > 5, 1).otherwise(0)))        # Medium single item qty
             .withColumn("potential_fraud",
-                       when(col("fraud_score") >= 4, True).otherwise(False))
+                       when(col("fraud_score") >= 3, True).otherwise(False))       # Lowered threshold
             .filter(col("potential_fraud") == True)
             .select("order_id", "customer_id", "order_date_cleaned", "total_amount_cleaned",
                    "total_quantity", "fraud_score", "potential_fraud")

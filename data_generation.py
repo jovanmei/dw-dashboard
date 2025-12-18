@@ -212,6 +212,12 @@ def _generate_dirty_orders_data():
     orders_data.append((1, 101, "2024-01-15", "completed", 150.00, "legacy_db", "2024-01-15 10:30:00"))
     orders_data.append((5, 104, "2024-03-15", "completed", 450.75, "new_api", "2024-03-15 14:22:33"))
     
+    # Add some potentially fraudulent orders for demonstration
+    orders_data.append((200, 101, "2024-01-15", "completed", 2500.00, "web_portal", "2024-01-15 15:30:00"))  # Same day, high amount
+    orders_data.append((201, 102, "2024-06-01", "completed", 3200.00, "mobile_app", "2024-06-01 10:15:00"))  # High amount
+    orders_data.append((202, 103, "2024-07-10", "completed", 1800.00, "web_portal", "2024-07-10 09:45:00"))  # High amount
+    orders_data.append((203, 101, "2024-01-15", "completed", 1200.00, "mobile_app", "2024-01-15 18:22:00"))  # Same day as order 200
+    
     return orders_data
 
 
@@ -470,6 +476,12 @@ def _generate_dirty_order_items_data():
     # Add some duplicate item IDs (data quality issue) - ensure all values are proper types
     order_items_data.append((1, 1, 201, 2, 75.00, 15.0, 6.00, 81.00))
     order_items_data.append((5, 5, 204, 3, 150.25, 0.0, 12.02, 162.27))
+    
+    # Add order items for potentially fraudulent orders
+    order_items_data.append((1000, 200, 201, 15, 150.00, 0.0, 180.00, 2430.00))  # High quantity
+    order_items_data.append((1001, 201, 202, 8, 400.00, 0.0, 256.00, 3456.00))   # High price
+    order_items_data.append((1002, 202, 203, 12, 150.00, 0.0, 144.00, 1944.00))  # High quantity
+    order_items_data.append((1003, 203, 204, 6, 200.00, 0.0, 96.00, 1296.00))    # Normal but contributes to same-day pattern
     
     return order_items_data
 
