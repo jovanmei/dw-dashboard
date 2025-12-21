@@ -12,8 +12,15 @@ This module implements continuous processing of e-commerce events with:
 from __future__ import annotations
 
 import json
+import os
+import sys
 from datetime import datetime, timedelta
 from typing import Optional
+
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (

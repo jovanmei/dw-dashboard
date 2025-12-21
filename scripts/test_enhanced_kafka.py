@@ -10,7 +10,11 @@ This script tests that all components work correctly:
 
 import time
 import sys
+import os
 from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 def test_simple_kafka_server():
     """Test that Simple Kafka server works."""

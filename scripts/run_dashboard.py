@@ -19,9 +19,12 @@ def main():
     print("=" * 60)
     
     try:
+        # Get path to dashboard
+        dashboard_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dashboards", "enhanced_app.py")
+        
         # Run streamlit
         subprocess.run([
-            sys.executable, "-m", "streamlit", "run", "app.py",
+            sys.executable, "-m", "streamlit", "run", dashboard_path,
             "--server.port", "8501",
             "--server.address", "localhost"
         ], check=True)

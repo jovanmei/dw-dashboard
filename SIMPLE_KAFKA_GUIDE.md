@@ -2,19 +2,19 @@
 
 ## Problem Solved ✅
 
-The Streamlit dashboard was showing "Simple Kafka server not available" because it was looking for a `simple_kafka_server.py` file that didn't exist. 
+The Streamlit dashboard was showing "Simple Kafka server not available" because it was looking for the message broker server that didn't exist in its local environment.
 
-## What I Fixed
+## What's New
 
-1. **Created `simple_kafka_server.py`** - A standalone server launcher that the dashboard expects
-2. **Created `run_simple_kafka_pipeline.py`** - A complete pipeline runner that starts everything
-3. **Fixed dashboard configuration issues** - Resolved Streamlit page config conflicts
+1. **Re-organized Structure** - All scripts are now in the `scripts/` directory for better organization.
+2. **Consolidated Runner** - `scripts/run_simple_kafka_pipeline.py` starts everything you need in one command.
+3. **Enhanced Data Generator** - Now in `streaming/simple_kafka/data_generator_legacy.py`.
 
 ## How to Use
 
 ### Option 1: Run Complete Pipeline (Recommended)
 ```bash
-python run_simple_kafka_pipeline.py
+python scripts/run_simple_kafka_pipeline.py
 ```
 This starts:
 - Simple Kafka server (in-memory message broker)
@@ -25,12 +25,13 @@ This starts:
 
 1. **Start the server:**
 ```bash
-python simple_kafka_server.py
+# The server is usually started by the generator or dashboard if not running
+python streaming/simple_kafka/server_legacy.py
 ```
 
 2. **Generate test data:**
 ```bash
-python streaming_data_generator_simple.py --burst --duration 30
+python streaming/simple_kafka/data_generator_legacy.py --burst --duration 30
 ```
 
 3. **Run the dashboard:**
@@ -58,13 +59,11 @@ The system creates realistic e-commerce data:
 
 ## Stopping the Pipeline
 
-Press `Ctrl+C` to stop all components gracefully.
+Press `Ctrl+C` in the terminal where you ran the pipeline to stop all components gracefully.
 
 ## Troubleshooting
 
 If you see "Simple Kafka server not available":
-1. Make sure `simple_kafka_server.py` exists (it should now)
-2. Run the complete pipeline with `python run_simple_kafka_pipeline.py`
-3. Wait a few seconds for data generation before viewing the dashboard
-
-The system uses an in-memory message broker, so data is lost when you stop the server. This is perfect for development and testing!
+1. Run the complete pipeline with `python scripts/run_simple_kafka_pipeline.py`
+2. Wait a few seconds for data generation before viewing the dashboard
+3. Ensure you have the required dependencies: `pip install -r requirements.txt`

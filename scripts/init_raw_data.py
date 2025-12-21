@@ -12,6 +12,12 @@ them out in the exact formats expected by the ETL pipeline:
 
 from __future__ import annotations
 
+import sys
+import os
+
+# Add project root to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from config.settings import PATHS
 from scripts.data_generation import create_sample_dataframes
 from config.spark_config import create_spark_session

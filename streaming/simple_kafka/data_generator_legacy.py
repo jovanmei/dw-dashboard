@@ -11,14 +11,21 @@ This generator creates realistic e-commerce data across all topics:
 import json
 import time
 import random
+import os
+import sys
 from datetime import datetime, timedelta
 from typing import List, Dict
+
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 try:
     from streaming.simple_kafka.server import SimpleKafkaProducer
 except ImportError:
-    # Fallback for direct execution
-    from simple_kafka_server import SimpleKafkaProducer
+    # This should now work because of the sys.path injection
+    from streaming.simple_kafka.server import SimpleKafkaProducer
 
 
 class EnhancedDataGenerator:

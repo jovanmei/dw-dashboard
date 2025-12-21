@@ -36,8 +36,11 @@ def start_data_generator():
     """Start the data generator."""
     print("🚀 Starting data generator...")
     
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    generator_path = os.path.join(project_root, "streaming", "simple_kafka", "data_generator_legacy.py")
+    
     cmd = [
-        sys.executable, "streaming_data_generator_simple.py",
+        sys.executable, generator_path,
         "--interval", "2.0",
         "--burst"
     ]
@@ -60,9 +63,12 @@ def start_dashboard(port=8502):
     """Start the Streamlit dashboard."""
     print(f"🚀 Starting dashboard on port {port}...")
     
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    dashboard_path = os.path.join(project_root, "dashboards", "app_simple_kafka.py")
+    
     cmd = [
         sys.executable, "-m", "streamlit", "run", 
-        "dashboards/app_simple_kafka.py",
+        dashboard_path,
         "--server.port", str(port),
         "--server.headless", "true"
     ]

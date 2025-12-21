@@ -14,6 +14,11 @@ import signal
 from pathlib import Path
 from typing import List, Optional
 
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 
 class KafkaStreamingOrchestrator:
     """Orchestrates the complete Kafka streaming pipeline."""

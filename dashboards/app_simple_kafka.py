@@ -9,7 +9,13 @@ from __future__ import annotations
 
 import time
 import sys
+import os
 from typing import Optional, Dict, List
+
+# Add project root to path if not already there
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 from datetime import datetime, timedelta
 from collections import defaultdict
 
