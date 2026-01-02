@@ -1128,21 +1128,11 @@ def main():
                 raise Exception(f"HTTP {response.status_code}")
         except Exception as e:
             st.error("❌ Simple Kafka server not available")
-            error_msg = f"""
-            **Simple Kafka is not available in this environment.**
-            
-            This dashboard is currently in live mode but cannot connect to a Simple Kafka server.
-            
-            **Options:**
-            1. **Switch to Demo Mode** - Use the toggle in settings to enable sample data
-            2. **For local development:**
-               - Run: `python scripts/run_streaming_simple.py`
-            
-            **Debug info:**
-            - Server URL: http://localhost:5051
-            - Error: {e}
-            """
-            st.info(error_msg, unsafe_allow_html=True)
+            st.write("This dashboard is currently in live mode but cannot connect to a Simple Kafka server.")
+            st.write("Options:")
+            st.write("1. Switch to Demo Mode - Use the toggle in settings to enable sample data")
+            st.write("2. For local development: Run `python scripts/run_streaming_simple.py`")
+            st.write(f"Debug info: Server URL - http://localhost:5051, Error - {str(e)}")
             return
     
     
