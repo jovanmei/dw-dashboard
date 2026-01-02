@@ -13,7 +13,7 @@ import os
 from typing import Optional, Dict, List
 
 # Add project root to path if not already there
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 from datetime import datetime, timedelta
@@ -27,18 +27,23 @@ from plotly.subplots import make_subplots
 
 # Import Simple Kafka components
 try:
-    from streaming.simple_kafka.server import get_server, SimpleKafkaConsumer, start_simple_kafka_server
+    from src.streaming.simple.server import get_server, SimpleKafkaConsumer, start_simple_kafka_server
     SIMPLE_KAFKA_AVAILABLE = True
     
-    # Auto-initialize server on import (for Streamlit Cloud)
+    # Auto-initialize server on import
     try:
-        server = get_server()
-        # Check if server has topics, if not initialize it
-        if not server.list_topics():
-            start_simple_kafka_server()
+        # First try to connect to the REST server
+        server = get_server(bootstrap_servers='http://localhost:5051')
+        # Check if server is alive by listing topics
+        server.list_topics()
     except Exception:
-        # Server will be initialized on first use
-        pass
+        try:
+            # Fallback to local server
+            server = get_server()
+            if not server.list_topics():
+                start_simple_kafka_server()
+        except Exception:
+            pass
         
 except ImportError:
     SIMPLE_KAFKA_AVAILABLE = False
@@ -66,16 +71,26 @@ def generate_sample_data():
         return False
     
     try:
-        from streaming.simple_kafka.server import SimpleKafkaProducer
+        from src.streaming.simple.server import SimpleKafkaProducer
         import json
         from datetime import datetime
         import random
         
+        # Debug: Print connection attempt
+        st.write("🔧 Attempting to connect to Simple Kafka server...")
+        
         producer = SimpleKafkaProducer(
+            bootstrap_servers='http://localhost:5051',
             value_serializer=lambda v: json.dumps(v).encode('utf-8')
         )
         
+        # Debug: Confirm connection
+        st.write("✅ Producer created successfully")
+        
         # Generate sample orders
+        st.write("📊 Generating sample data...")
+        generated_count = 0
+        
         for i in range(20):
             order_id = 1000 + i
             customer_id = 101 + (i % 10)
@@ -97,7 +112,9 @@ def generate_sample_data():
                 'source_system': 'demo_data'
             }
             
-            producer.send('ecommerce_orders', order)
+            # Send the order
+            result = producer.send('ecommerce_orders', order)
+            generated_count += 1
             
             # Generate customer event (30% chance)
             if random.random() < 0.3:
@@ -110,6 +127,7 @@ def generate_sample_data():
                     'event_timestamp': datetime.now().isoformat()
                 }
                 producer.send('ecommerce_customers', customer)
+                generated_count += 1
             
             # Generate order items (1-3 per order)
             num_items = random.randint(1, 3)
@@ -126,6 +144,7 @@ def generate_sample_data():
                     'total_price': round(total_amount / num_items, 2)
                 }
                 producer.send('ecommerce_order_items', item)
+                generated_count += 1
             
             # Generate fraud alert (15% chance)
             if random.random() < 0.15 or total_amount > 2000:
@@ -143,12 +162,27 @@ def generate_sample_data():
                     'requires_review': fraud_score >= 4
                 }
                 producer.send('ecommerce_fraud_alerts', alert)
+                generated_count += 1
         
+        # Flush and close properly
+        producer.flush()
         producer.close()
+        
+        st.write(f"✅ Generated {generated_count} sample events!")
+        
+        # Refresh the dashboard to show new data
+        if hasattr(st, 'rerun'):
+            st.rerun()
+        elif hasattr(st, 'experimental_rerun'):
+            st.experimental_rerun()
+        
         return True
         
     except Exception as e:
         st.error(f"Error generating sample data: {e}")
+        # Show full error traceback for debugging
+        import traceback
+        st.code(traceback.format_exc())
         return False
 
 
@@ -158,7 +192,8 @@ def get_simple_kafka_status():
         return {}
     
     try:
-        server = get_server()
+        # Try to connect to the REST server if it's running
+        server = get_server(bootstrap_servers='http://localhost:5051')
         topics = server.list_topics()
         
         status = {
@@ -184,7 +219,8 @@ def load_simple_kafka_messages(topic: str, limit: int = 1000) -> Optional[pd.Dat
         return None
     
     try:
-        server = get_server()
+        # Use REST server for loading messages
+        server = get_server(bootstrap_servers='http://localhost:5051')
         
         # Get messages from all partitions
         all_messages = []
@@ -315,7 +351,7 @@ def create_simple_kafka_status_section():
         # Try to initialize server
         if st.button("🚀 Initialize Simple Kafka Server"):
             try:
-                from streaming.simple_kafka.server import start_simple_kafka_server
+                from src.streaming.simple.server import start_simple_kafka_server
                 start_simple_kafka_server()
                 st.success("✅ Server initialized!")
                 st.rerun()
@@ -830,26 +866,6 @@ def create_simple_kafka_orders_section():
         st.info("⏳ No orders data available yet")
 
 
-def main():
-    """Main dashboard function."""
-    st.set_page_config(
-        page_title="Simple Kafka Real-Time Dashboard",
-        layout="wide",
-        initial_sidebar_state="expanded",
-        page_icon="⚡"
-    )
-    
-    st.title("⚡ Simple Kafka Real-Time Dashboard")
-    st.markdown("""
-    **Live Data Pipeline Dashboard** - Real-time analytics from Simple Kafka in-memory broker
-    
-    This dashboard provides:
-    - **Server Status** - Monitor Simple Kafka broker and topics
-    - **Real-Time Metrics** - Live revenue, orders, and customer analytics  
-    - **Fraud Detection** - Suspicious pattern identification
-    - **Order Stream** - Recent orders with filtering capabilities
-    """)
-    
 def main():
     """Main dashboard function."""
     # Only set page config if not already set

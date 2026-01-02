@@ -13,7 +13,7 @@ import sys
 
 from pyspark.sql import SparkSession
 
-from config.settings import SPARK_CONFIG
+from src.config.settings import SPARK_CONFIG
 
 
 def create_spark_session() -> SparkSession:

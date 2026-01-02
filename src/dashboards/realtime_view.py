@@ -13,6 +13,11 @@ from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -432,15 +437,11 @@ def create_pipeline_status_section():
     if not status['generator_running'] or not status['pipeline_running']:
         st.subheader("🚀 Quick Start")
         st.code("""
-# Option 1: All-in-one (Recommended)
-python run_realtime_pipeline.py --with-dashboard
+# Start Spark streaming pipeline (Recommended)
+python scripts/run_streaming_spark.py --mode file
 
-# Option 2: Manual setup
-# Terminal 1: Start data generator
-python streaming_data_generator.py --interval 2.0
-
-# Terminal 2: Start streaming pipeline  
-python streaming_pipeline.py --mode file
+# Start Real-Time Dashboard separately
+python scripts/run_dashboard.py spark
         """)
     
     # Debug information

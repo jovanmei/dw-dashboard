@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 
 # Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -72,8 +72,9 @@ def create_directories():
 def start_data_generator(interval: float = 2.0, duration: int = None):
     """Start the streaming data generator in background."""
     print("\n[START] Starting data generator...")
+    generator_path = os.path.join(project_root, "src", "streaming", "spark", "data_generator.py")
     cmd = [
-        sys.executable, "streaming_data_generator.py",
+        sys.executable, generator_path,
         "--mode", "file",
         "--interval", str(interval)
     ]
@@ -94,8 +95,9 @@ def start_data_generator(interval: float = 2.0, duration: int = None):
 def start_streaming_pipeline(mode: str = "file"):
     """Start the Spark Structured Streaming pipeline."""
     print("\n[START] Starting streaming pipeline...")
+    pipeline_path = os.path.join(project_root, "src", "streaming", "spark", "pipeline.py")
     cmd = [
-        sys.executable, "streaming_pipeline.py",
+        sys.executable, pipeline_path,
         "--mode", mode
     ]
     
@@ -115,8 +117,9 @@ def start_streaming_pipeline(mode: str = "file"):
 def start_dashboard():
     """Start the Streamlit real-time dashboard."""
     print("\n[START] Starting real-time dashboard...")
+    dashboard_path = os.path.join(project_root, "src", "dashboards", "realtime_view.py")
     cmd = [
-        sys.executable, "-m", "streamlit", "run", "app_realtime.py",
+        sys.executable, "-m", "streamlit", "run", dashboard_path,
         "--server.port", "8502",
         "--server.address", "localhost"
     ]

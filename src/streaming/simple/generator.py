@@ -17,15 +17,15 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 
 # Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from streaming.simple_kafka.server import SimpleKafkaProducer
+    from src.streaming.simple.server import SimpleKafkaProducer
 except ImportError:
     # This should now work because of the sys.path injection
-    from streaming.simple_kafka.server import SimpleKafkaProducer
+    from src.streaming.simple.server import SimpleKafkaProducer
 
 
 class EnhancedDataGenerator:
@@ -33,6 +33,7 @@ class EnhancedDataGenerator:
     
     def __init__(self):
         self.producer = SimpleKafkaProducer(
+            bootstrap_servers='http://localhost:5051',
             value_serializer=lambda v: json.dumps(v).encode('utf-8')
         )
         
@@ -270,7 +271,7 @@ class EnhancedDataGenerator:
     
     def print_stats(self):
         """Print generation statistics."""
-        print(f"📊 Generated: Orders={self.stats['orders']}, "
+        print(f"[STATS] Generated: Orders={self.stats['orders']}, "
               f"Customers={self.stats['customers']}, "
               f"Items={self.stats['order_items']}, "
               f"Fraud Alerts={self.stats['fraud_alerts']}")
@@ -296,24 +297,24 @@ def main():
     generator = EnhancedDataGenerator()
     start_time = time.time()
     
-    print("🚀 Enhanced Simple Kafka Data Generator")
+    print("[START] Enhanced Simple Kafka Data Generator")
     print("=" * 50)
     print("Populating all topics:")
-    print("  • ecommerce_orders")
-    print("  • ecommerce_customers") 
-    print("  • ecommerce_order_items")
-    print("  • ecommerce_fraud_alerts")
+    print("  - ecommerce_orders")
+    print("  - ecommerce_customers") 
+    print("  - ecommerce_order_items")
+    print("  - ecommerce_fraud_alerts")
     print(f"\nGenerating events every {args.interval}s...")
     
     try:
         # Initial burst to populate topics quickly
         if args.burst:
-            print("\n⚡ Generating initial burst of data...")
+            print("\n[BURST] Generating initial burst of data...")
             for i in range(20):
                 generator.generate_and_send_events()
                 if i % 5 == 0:
                     generator.print_stats()
-            print("✅ Initial burst complete\n")
+            print("[OK] Initial burst complete\n")
         
         # Continuous generation
         while True:
@@ -329,10 +330,10 @@ def main():
             time.sleep(args.interval)
             
     except KeyboardInterrupt:
-        print(f"\n🛑 Stopping generator...")
+        print(f"\n[STOP] Stopping generator...")
     finally:
         generator.print_stats()
-        print(f"\n📈 Final Statistics:")
+        print(f"\n[FINAL] Final Statistics:")
         print(f"   Total Runtime: {time.time() - start_time:.1f}s")
         print(f"   Events/Second: {sum(generator.stats.values()) / (time.time() - start_time):.2f}")
         generator.close()

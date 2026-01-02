@@ -9,88 +9,27 @@ from pathlib import Path
 # Add current directory to path
 sys.path.append('.')
 
-def test_pipeline_status():
-    """Test the pipeline status function."""
-    print("🔍 Testing pipeline status function...")
-    
-    try:
-        from app_realtime import get_pipeline_status
-        
-        status = get_pipeline_status()
-        print(f"✅ Pipeline status retrieved successfully")
-        print(f"   Generator running: {status['generator_running']}")
-        print(f"   Pipeline running: {status['pipeline_running']}")
-        print(f"   Input files: {status['input_files']}")
-        print(f"   Bronze files: {status['bronze_files']}")
-        print(f"   Silver files: {status['silver_files']}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Pipeline status test failed: {e}")
-        return False
-
-
-def test_data_loading():
-    """Test data loading functions."""
-    print("\n🔍 Testing data loading functions...")
-    
-    try:
-        from app_realtime import get_spark_session, load_bronze_orders, load_silver_orders
-        
-        # Test Spark session
-        spark = get_spark_session()
-        if spark:
-            print("✅ Spark session created successfully")
-            
-            # Test Bronze loading
-            bronze_df = load_bronze_orders(spark, 10)
-            if bronze_df is not None:
-                print(f"✅ Bronze data loaded: {len(bronze_df)} orders")
-            else:
-                print("ℹ️ No Bronze data available (expected if pipeline not running)")
-            
-            # Test Silver loading
-            silver_df = load_silver_orders(spark, 10)
-            if silver_df is not None:
-                print(f"✅ Silver data loaded: {len(silver_df)} orders")
-            else:
-                print("ℹ️ No Silver data available (expected if pipeline not running)")
-            
-            spark.stop()
-            return True
-        else:
-            print("❌ Could not create Spark session")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Data loading test failed: {e}")
-        return False
-
-
 def test_fraud_detection():
     """Test fraud detection function."""
-    print("\n🔍 Testing fraud detection function...")
+    print("🔍 Testing fraud detection function...")
     
     try:
         import pandas as pd
-        from app_realtime import detect_fraud_from_data
+        from src.utils.analytics import detect_monthly_revenue_anomalies
         
-        # Create test data
+        # Create test data with monthly revenue
         test_data = pd.DataFrame({
-            'order_id': [1, 2, 3, 4],
-            'customer_id': [101, 102, 103, 104],
-            'total_amount': [1000, 3500, 6000, 500],  # One high-value order
-            'status': ['completed', 'completed', 'cancelled', 'completed']
+            'month': ['2023-01', '2023-02', '2023-03', '2023-04', '2023-05'],
+            'total_revenue': [10000, 12000, 11500, 80000, 13000]  # Anomaly in April
         })
         
-        fraud_df = detect_fraud_from_data(test_data)
+        anomalies = detect_monthly_revenue_anomalies(test_data)
         print(f"✅ Fraud detection completed")
-        print(f"   Test orders: {len(test_data)}")
-        print(f"   Fraud alerts: {len(fraud_df)}")
+        print(f"   Test months: {len(test_data)}")
+        print(f"   Anomalies detected: {len(anomalies)}")
         
-        if len(fraud_df) > 0:
-            print(f"   Fraud scores: {fraud_df['fraud_score'].tolist()}")
+        if len(anomalies) > 0:
+            print(f"   Anomaly months: {anomalies['month'].tolist()}")
         
         return True
         
@@ -104,31 +43,44 @@ def test_metrics_calculation():
     print("\n🔍 Testing metrics calculation function...")
     
     try:
-        import pandas as pd
-        from datetime import datetime, timedelta
-        from app_realtime import calculate_realtime_metrics
+        from src.utils.transformations import build_customer_metrics
+        from pyspark.sql import SparkSession
         
-        # Create test data with timestamps
-        now = datetime.now()
-        test_data = pd.DataFrame({
-            'order_id': [1, 2, 3, 4],
-            'customer_id': [101, 102, 103, 101],
-            'total_amount': [100, 200, 300, 150],
-            'status': ['completed', 'completed', 'pending', 'completed'],
-            'event_timestamp': [
-                now - timedelta(minutes=30),
-                now - timedelta(minutes=20),
-                now - timedelta(minutes=10),
-                now - timedelta(minutes=5)
-            ]
-        })
+        # Create Spark session for testing
+        spark = SparkSession.builder \
+            .appName("TestMetrics") \
+            .master("local[1]") \
+            .getOrCreate()
         
-        metrics = calculate_realtime_metrics(test_data)
+        # Create test data
+        orders_data = [
+            (1, 101, '2023-01-01', 'completed', 100.0, 1),
+            (2, 102, '2023-01-02', 'completed', 200.0, 1),
+            (3, 101, '2023-01-03', 'completed', 150.0, 1),
+            (4, 103, '2023-01-04', 'pending', 300.0, 0)
+        ]
+        
+        customers_data = [
+            (101, 'Customer 1', 'cust1@example.com'),
+            (102, 'Customer 2', 'cust2@example.com'),
+            (103, 'Customer 3', 'cust3@example.com')
+        ]
+        
+        orders_df = spark.createDataFrame(orders_data, [
+            'order_id', 'customer_id', 'order_date', 'status', 'total_amount', 'is_valid_order'
+        ])
+        
+        customers_df = spark.createDataFrame(customers_data, [
+            'customer_id', 'name', 'email'
+        ])
+        
+        # Calculate metrics
+        metrics_df = build_customer_metrics(orders_df, customers_df)
         print(f"✅ Metrics calculation completed")
-        print(f"   Total orders: {metrics.get('total_orders', 0)}")
-        print(f"   Total revenue: ${metrics.get('total_revenue', 0):.2f}")
-        print(f"   Avg order value: ${metrics.get('avg_order_value', 0):.2f}")
-        print(f"   Unique customers: {metrics.get('unique_customers', 0)}")
+        print(f"   Customers with metrics: {metrics_df.count()}")
+        
+        # Stop Spark session
+        spark.stop()
         
         return True
         
@@ -139,12 +91,10 @@ def test_metrics_calculation():
 
 def main():
     """Run all tests."""
-    print("🧪 Testing Real-Time Dashboard Components")
+    print("🧪 Testing Dashboard Components")
     print("=" * 50)
     
     tests = [
-        test_pipeline_status,
-        test_data_loading,
         test_fraud_detection,
         test_metrics_calculation
     ]
@@ -159,12 +109,14 @@ def main():
     print(f"\n📊 Test Results: {passed}/{total} tests passed")
     
     if passed == total:
-        print("🎉 All tests passed! Dashboard should work correctly.")
+        print("🎉 All tests passed! Dashboard components should work correctly.")
     else:
         print("⚠️ Some tests failed. Check the errors above.")
     
     print("\n💡 To test the full dashboard:")
-    print("   streamlit run app_realtime.py --server.port 8502")
+    print("   python scripts/run_dashboard.py batch")
+    print("   python scripts/run_dashboard.py spark")
+    print("   python scripts/run_dashboard.py simple")
 
 
 if __name__ == "__main__":

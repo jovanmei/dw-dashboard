@@ -61,16 +61,16 @@ The pipeline supports three distinct modes based on your infrastructure:
 The "Simple Kafka" mode uses a lightweight, in-memory message broker. This is the **recommended mode for Streamlit Cloud** and quick local development.
 
 ### How to Use
-1. **Run Complete Pipeline (Recommended)**:
+1. **Run Complete Pipeline (Recommended)**:  
    ```bash
-   python scripts/run_simple_kafka_pipeline.py
+   python scripts/run_streaming_simple.py
    ```
    This starts the server, generator, and dashboard in one go.
 
 2. **Manual Components**:
-   - Start Server: `python streaming/simple_kafka/server_legacy.py`
-   - Start Generator: `python streaming/simple_kafka/data_generator_legacy.py --burst`
-   - Start Dashboard: `streamlit run dashboards/app_simple_kafka.py --server.port 8502`
+   - Start Server: `python -m src.streaming.simple.server serve`
+   - Start Generator: `python src/streaming/simple/generator.py`
+   - Start Dashboard: `python scripts/run_dashboard.py simple`
 
 ### 🎯 What to Expect
 After starting the data generator with `--burst`:
@@ -111,19 +111,23 @@ For a full-scale deployment, follow these setup instructions.
 ### Production Kafka Mode
 ```bash
 # Start everything
-python scripts/run_streaming.py --mode kafka --with-dashboard
+python scripts/run_streaming_spark.py --mode kafka
+# Start Dashboard separately
+python scripts/run_dashboard.py spark
 ```
 
 ### File-Based Mode
 ```bash
 # Start everything
-python scripts/run_streaming.py --mode file --with-dashboard
+python scripts/run_streaming_spark.py --mode file
+# Start Dashboard separately
+python scripts/run_dashboard.py spark
 ```
 
 ### Component Details
-- **Data Generator**: `streaming/file_based/data_generator.py` or `streaming/kafka/setup.py`
-- **Spark Pipeline**: `streaming/file_based/pipeline.py` or `streaming/kafka/run_pipeline.py`
-- **Dashboard**: `dashboards/app_realtime.py`
+- **Data Generator**: `src/streaming/simple/generator.py` or `src/streaming/spark/data_generator.py`
+- **Spark Pipeline**: `src/streaming/spark/pipeline.py` or `src/streaming/kafka/runner.py`
+- **Dashboard**: `src/dashboards/realtime_view.py` or `src/dashboards/broker_monitor.py`
 
 ---
 

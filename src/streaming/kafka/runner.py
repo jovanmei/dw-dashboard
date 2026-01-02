@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import List, Optional
 
 # Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -147,8 +147,9 @@ class KafkaStreamingOrchestrator:
         """Start the Kafka data generator."""
         print("🚀 Starting Kafka data generator...")
         
+        generator_path = os.path.join(project_root, "src", "streaming", "spark", "data_generator.py")
         cmd = [
-            sys.executable, "streaming_data_generator.py",
+            sys.executable, generator_path,
             "--mode", "kafka",
             "--kafka-servers", self.kafka_servers,
             "--interval", str(interval),
@@ -171,8 +172,9 @@ class KafkaStreamingOrchestrator:
         """Start the Spark Structured Streaming pipeline."""
         print("🚀 Starting Spark streaming pipeline...")
         
+        pipeline_path = os.path.join(project_root, "src", "streaming", "spark", "pipeline.py")
         cmd = [
-            sys.executable, "streaming_pipeline.py",
+            sys.executable, pipeline_path,
             "--mode", "kafka",
             "--kafka-servers", self.kafka_servers,
             "--kafka-topic", "ecommerce_orders"
@@ -191,8 +193,9 @@ class KafkaStreamingOrchestrator:
         """Start the real-time dashboard."""
         print(f"🚀 Starting real-time dashboard on port {port}...")
         
+        dashboard_path = os.path.join(project_root, "src", "dashboards", "realtime_view.py")
         cmd = [
-            sys.executable, "-m", "streamlit", "run", "app_realtime.py",
+            sys.executable, "-m", "streamlit", "run", dashboard_path,
             "--server.port", str(port),
             "--server.headless", "true"
         ]

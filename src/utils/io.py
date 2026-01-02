@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pyspark.sql import DataFrame, SparkSession
 
-from config.settings import PATHS
+from src.config.settings import PATHS
 
 
 def _path_exists(spark: SparkSession, path: str) -> bool:

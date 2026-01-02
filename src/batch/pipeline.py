@@ -20,21 +20,21 @@ from __future__ import annotations
 import sys
 import os
 
-# Add project root to path to allow importing from utils and config
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add project root to path to allow importing from src
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col
 
-from utils.analytics import (
+from src.utils.analytics import (
     print_customer_rfm,
     print_dataframe_with_title,
     print_overall_revenue_metrics,
     print_revenue_anomalies,
     print_top_customers,
 )
-from scripts.data_generation import create_sample_dataframes
-from utils.io import (
+from src.batch.generator import create_sample_dataframes
+from src.utils.io import (
     read_customers,
     read_order_items,
     read_orders,
@@ -46,9 +46,9 @@ from utils.io import (
     write_gold_dashboard_csv,
     write_silver_tables,
 )
-from utils.quality_checks import compute_date_range, compute_null_counts, find_duplicate_keys
-from config.spark_config import create_spark_session
-from utils.transformations import (
+from src.utils.quality_checks import compute_date_range, compute_null_counts, find_duplicate_keys
+from src.config.spark_config import create_spark_session
+from src.utils.transformations import (
     build_category_performance,
     build_customer_metrics,
     build_customer_rfm,

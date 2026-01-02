@@ -25,14 +25,17 @@ def main():
     
     try:
         if args.mode == "file":
-            from streaming.file_based.run_pipeline import main as run_file_pipeline
+            from src.streaming.spark.runner import main as run_file_pipeline
             run_file_pipeline()
         elif args.mode == "kafka":
-            from streaming.kafka.run_pipeline import main as run_kafka_pipeline
+            from src.streaming.kafka.runner import main as run_kafka_pipeline
             run_kafka_pipeline()
         elif args.mode == "simple":
-            from streaming.simple_kafka.run_pipeline import main as run_simple_pipeline
-            run_simple_pipeline()
+            try:
+                from scripts.run_streaming_simple import main as run_simple_pipeline
+                run_simple_pipeline()
+            except ImportError:
+                print("Could not import simple streaming runner. Make sure scripts/run_streaming_simple.py exists.")
     except ImportError as e:
         print(f"Could not import pipeline module: {e}")
     except Exception as e:

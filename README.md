@@ -15,9 +15,36 @@ A production-ready, modular data engineering project implementing a **Medallion 
 3. [Architecture Deep Dive](#-architecture-deep-dive)
 4. [File-by-File Technical Directory](#-file-by-file-technical-directory)
 5. [Data Quality (DQ) Framework](#-data-quality-dq-framework)
-6. [Getting Started](#-getting-started)
-7. [Streaming Strategy](#-streaming-strategy)
-8. [Testing](#-testing)
+6. [Coding Standards & Guidelines](#-coding-standards--guidelines)
+7. [Getting Started](#-getting-started)
+8. [Streaming Strategy](#-streaming-strategy)
+9. [Interview Preparation](#-interview-preparation-key-technical-concepts)
+10. [Full Command Reference](#-full-command-reference)
+11. [License](#-license)
+
+---
+
+## ⚡ Quick Start (Batch Mode)
+```bash
+# 1. Initialize messy raw data
+python src/batch/bootstrap.py
+
+# 2. Run the full Medallion ETL pipeline
+python scripts/run_batch.py
+
+# 3. Launch the BI Dashboard
+python scripts/run_dashboard.py
+```
+
+## ⚡ Quick Start (Streaming Mode)
+```bash
+# Launch the full streaming stack (Server + Generator + Pipeline + Dashboard)
+python scripts/run_streaming_simple.py
+```
+
+### 3. Access Dashboard
+- Open your browser to `http://localhost:8503` to see the real-time visualization.
+- *Note: You can also use `python scripts/run_dashboard.py simple` to launch just the monitor.*
 
 ---
 
@@ -72,42 +99,116 @@ We use a three-layer approach to ensure data quality and scalability:
 
 ---
 
-## 📁 File-by-File Technical Directory
+## 📁 Project Structure
+### 📦 Core Business Logic (`src/batch`)
+- `pipeline.py`: **Medallion Orchestrator**. The heart of the batch ETL, managing transitions from Bronze → Silver → Gold layers.
+- `generator.py`: **Data Engine**. Responsible for creating the "messy" synthetic data that mimics production anomalies.
+- `bootstrap.py`: **Bootstrap Script**. Materializes the raw CSV/JSON/Parquet files needed to kick off the batch pipeline.
 
-### ⚙️ Configuration (`/config`)
-- `settings.py`: Centralized constants, file paths, and Spark session parameters. Uses dataclasses for clean, immutable config.
-- `spark_config.py`: Specialized Spark tuning (shuffle partitions, memory management) optimized for local development.
+### ⚙️ Configuration (`src/config`)
+- `settings.py`: **Centralized State Management**. Uses Python's `dataclasses` and `pathlib` for type-safe, immutable configurations. Defines environment paths for Bronze, Silver, and Gold layers.
+- `spark_config.py`: **Performance Tuning**. Configures the Spark session with optimized settings for local execution, including `spark.sql.shuffle.partitions` and memory allocation to prevent OOM errors during large joins.
 
-### 📊 Dashboards (`/dashboards`)
-- `app_batch.py`: The primary BI application. Visualizes historical data, RFM segments, and Data Quality metrics.
-- `app_realtime.py`: High-concurrency dashboard designed for production Kafka streams.
-- `app_simple_kafka.py`: Lightweight dashboard using the "Simple Kafka" mimic for Streamlit Cloud or local dev without Docker.
+### 📊 Dashboards (`src/dashboards`)
+- `batch_view.py`: **Executive BI Tool**. A multi-page Streamlit app that visualizes:
+    - **KPI Overviews**: Revenue, order volume, and customer growth.
+    - **Customer Analytics**: RFM segmentation and top-tier customer behavior.
+    - **Data Health**: Interactive DQ reports showing null counts and duplicate trends.
+- `broker_monitor.py`: **Operational Monitor**. A low-latency dashboard that connects to the `simple_kafka` REST proxy. It provides real-time visibility into the message broker's health and topic throughput.
+- `realtime_view.py`: **Enterprise Streaming UI**. Designed for production Kafka environments, using Spark Structured Streaming to push live updates to the frontend.
 
 ### 🚀 Execution Scripts (`/scripts`)
-- `batch_etl_pipeline.py`: The "brain" of the ETL. Orchestrates the flow from Raw → Bronze → Silver → Gold.
-- `run_batch_etl.py`: Simple entry point to trigger the full batch pipeline.
-- `run_dashboard.py`: Convenience script to launch the Streamlit server with the correct environment variables.
-- `init_raw_data.py`: Generates synthetic, "dirty" data (missing values, duplicates) to demonstrate the cleaning logic.
-- `data_generation.py`: Library of generators for customers, orders, and products.
-- `run_streaming.py`: Master launcher for all streaming modes (File-based, Simple Kafka, Production Kafka).
-- `run_simple_kafka_pipeline.py`: A one-click script to start the entire Simple Kafka stack (Server + Generator + Dashboard).
+- `run_batch.py`: **Batch Entry Point**. Triggers the full Medallion workflow (Bronze → Silver → Gold) with integrated logging and error handling.
+- `run_streaming_simple.py`: **Streaming Entry Point**. Uses Python's `subprocess` to launch the entire "Simple Kafka" ecosystem (Broker, Generator, Dashboard) as a single unit.
+- `run_streaming_spark.py`: **File-based Streaming Entry Point**. Demonstrates Spark Structured Streaming using file sources (JSON/CSV) as a stream.
+- `inspect_simple_kafka.py`: **Data Inspection**. CLI tool to query the Simple Kafka SQLite database directly to view messages, topics, and consumer progress.
+- `run_dashboard.py`: **BI Entry Point**. Launches the Streamlit dashboard. Supports `batch` (default), `spark` (real-time), and `simple` (monitor) modes.
 
-### 🌊 Streaming Engine (`/streaming`)
-- `/file_based`: Uses Spark's `readStream` to monitor local directories for new data drops.
-- `/kafka`: Full enterprise setup with Docker-Compose (Kafka + Zookeeper) for sub-second latency.
-- `/simple_kafka`: A Python-based in-memory broker that mimics Kafka behavior, allowing streaming features on restricted platforms like Streamlit Cloud.
+### 🌊 Streaming Engine (`src/streaming`)
+- `/simple`: **[Technical Highlight]** A lightweight, custom-built message broker.
+    - `server.py`: **Broker Core**. Implements a REST API (Flask) over a SQLite backend.
+    - `generator.py`: **Mock Producer**. Simulates high-velocity traffic for testing.
+- `/spark`: **Enterprise Streaming**. Core logic for Spark Structured Streaming.
+    - `pipeline.py`: **Stream Processor**. Implements windowed aggregations and fraud detection.
+    - `data_generator.py`: **Stream Source**. Generates continuous JSON/Kafka events.
+    - `runner.py`: **Orchestrator**. Manages the startup of streaming components.
+- `/kafka`: **Kafka Integration**. Contains configurations and runners for a standard Kafka stack.
 
-### 🛠️ Utilities & Logic (`/utils`)
-- `quality_checks.py`: The DQ engine. Contains logic for null counts, uniqueness checks, and referential integrity.
-- `transformations.py`: Core Spark logic for data enrichment, building the fact table, and silver layer modeling.
-- `analytics.py`: Encapsulates business logic like RFM scoring and statistical anomaly detection.
-- `io.py`: Abstracted I/O handlers. Makes it easy to switch from local storage to S3/Azure Blob.
-- `data_cleaning.py`: Specialized regex and rule-based cleaning for emails, dates, and names.
+### 🛠️ Utilities & Logic (`src/utils`)
+- `quality_checks.py`: **Data Integrity Engine**. A suite of Spark-based validation functions that compute:
+    - **Completeness**: Null/NaN percentages per column.
+    - **Uniqueness**: Duplicate primary key detection via `groupBy` and `count`.
+    - **Validity**: Date range boundaries and business logic constraints.
+- `transformations.py`: **The "Transformer"**. Contains modular Spark logic for:
+    - **Star Schema Joins**: Linking Fact (Orders) with Dimensions (Customers, Products).
+    - **Derived Columns**: Year/Month extraction and status flags.
+    - **Customer Metrics**: Aggregating lifetime value (LTV) and tenure.
+- `analytics.py`: **Business Insights Engine**. Implements advanced algorithms:
+    - **RFM Logic**: Recency, Frequency, and Monetary scoring to segment customers.
+    - **Anomaly Detection**: Statistical analysis to identify significant revenue drops vs. previous periods.
+- `data_cleaning.py`: **PII & Standardization**. Rule-based cleaning for name casing, email formatting, and timestamp normalization.
+- `io.py`: **Input/Output Helpers**. Reusable Spark write helpers for different storage layers.
 
 ### 🧪 Quality Assurance (`/tests`)
-- `test_environment.py`: Verifies Java, Python, and Spark dependencies are correctly installed.
-- `test_dashboard.py`: Validates that the Gold layer data is compatible with Streamlit.
-- `test_enhanced_kafka.py`: Stress-tests the embedded streaming pipeline.
+- `test_environment.py`: **Pre-flight Check**. Verifies Java, Python, and Spark dependencies are correctly configured before pipeline execution.
+- `test_dashboard.py`: **E2E Validation**. Ensures that the Gold layer Parquet files are schema-compatible with the Streamlit visualization engine.
+- `test_enhanced_kafka.py`: **Stress Testing**. Simulates high-load scenarios on the `simple_kafka` broker to validate SQLite concurrency and offset accuracy.
+- `test_kafka_production.py`: **Integration Testing**. Validates connectivity and message flow for enterprise-grade Kafka clusters.
+
+---
+
+## 🛠️ Core Modules & Implementation Details
+
+### 🛡️ Data Quality (DQ) Framework
+The `quality_checks.py` module is the project's "safety net." It is designed to be **extensible**:
+- **Implementation**: Uses Spark's `sum(col.isNull())` for efficient null counting across large datasets.
+- **Quarantine Logic**: (Optional implementation) Records failing critical checks are flagged in the Silver layer, allowing downstream Gold aggregations to remain pristine.
+
+### 📉 Dimensional Modeling
+In `transformations.py`, we transition from a normalized relational structure to a **Star Schema**:
+- **Fact Table**: `fact_orders` contains transactional data and foreign keys.
+- **Dimensions**: `dim_customers` and `dim_products` provide descriptive context.
+- **Why?**: This structure optimizes query performance for BI tools like Streamlit and Tableau.
+
+### 📡 Simple Kafka: The REST Proxy Pattern
+Built for environments where Docker is restricted, `simple_kafka` demonstrates a deep understanding of message broker architecture:
+- **ACID Transactions**: SQLite ensures that message production and offset commits are atomic.
+- **Consumer Offsets**: Tracking `current_offset` per `group_id` allows consumers to resume from where they left off, exactly like production Kafka.
+- **Scalability**: While in-memory/SQLite based, the REST API design allows for multi-producer/multi-consumer interaction.
+- **Data Inspection**: Use `python scripts/inspect_simple_kafka.py` to query the SQLite database directly and view messages, topics, and consumer progress.
+
+---
+
+## 🎓 Interview Preparation: Key Technical Concepts
+
+If you are presenting this project in an interview, here are the core concepts and design decisions to highlight:
+
+### 1. The "Simple Kafka" Architecture
+**Question**: *Why did you build your own message broker?*
+**Answer**: "I wanted to demonstrate streaming architecture on restricted platforms like Streamlit Cloud. I implemented a **REST Proxy Pattern** using a SQLite backend for ACID-compliant message storage. Key features include **offset management** (tracking consumer progress) and **consumer groups** (sharing workload). This proves I understand the 'under-the-hood' mechanics of how Kafka actually manages state and persistence."
+
+### 2. Medallion Architecture & Data Reliability
+**Question**: *How do you ensure data quality across the pipeline?*
+**Answer**: "I follow the **Medallion Architecture**. **Bronze** layer preserves the raw 'source of truth'. **Silver** layer performs schema enforcement and joins (Fact & Dimension tables). **Gold** layer provides business-level aggregations. This ensures that if a bug is found in the logic, we can re-process data from the raw layer without losing information."
+
+### 3. Data Quality (DQ) as a First-Class Citizen
+**Question**: *How do you deal with 'dirty' data?*
+**Answer**: "In this project, Data Quality isn't an afterthought. I built a custom **DQ Framework** (`utils/quality_checks.py`) that validates data at every transition. We track **Completeness, Uniqueness, and Validity**. Any data failing critical checks (like missing Customer IDs) is quarantined, ensuring the Gold layer remains 100% reliable for business decisions."
+
+### 4. RFM Analytics & Business Value
+**Question**: *How does this project drive business impact?*
+**Answer**: "Beyond the engineering, the project provides actionable insights. The **RFM Analysis** automatically segments customers based on their behavior (Recency, Frequency, Monetary). This allows marketing teams to immediately identify 'Champions' for loyalty programs or 'At Risk' customers for re-engagement campaigns."
+
+---
+
+## 🛠️ Data Engineering Skills Demonstrated
+| Skill | Implementation |
+| :--- | :--- |
+| **Apache Spark** | Structured Streaming, Spark SQL, Window Functions, Optimization. |
+| **Python** | OOP, Flask (REST API), Subprocess Management, Dataclasses. |
+| **Data Modeling** | Star Schema (Fact/Dimension), Medallion Architecture. |
+| **Streaming** | Message Brokers, Offsets, Producers/Consumers, REST Proxy. |
+| **DevOps** | Process Orchestration, Environment Validation, Logging. |
 
 ---
 
@@ -121,6 +222,35 @@ Our `quality_checks.py` module runs at every stage. It computes:
 | **Uniqueness** | Duplicate primary key detection | Duplicates removed using Window functions |
 | **Validity** | Date range and business rule validation | Records flagged as 'invalid' in monitoring |
 | **Referential Integrity** | Ensures orders match existing customers | Orphaned orders moved to a 'quarantine' view |
+
+---
+
+## 🎯 Coding Standards & Guidelines
+
+This project follows comprehensive coding standards and architectural guidelines outlined in the `VIBE_CODING.md` document. These guidelines ensure:
+
+- **Consistent Code Quality**: Standardized formatting, type hints, and docstrings
+- **Modular Architecture**: Clear separation of concerns and independent components
+- **Production Readiness**: Enterprise-grade practices for reliability and scalability
+- **Maintainability**: Clean, understandable code that's easy to extend
+- **Testability**: Well-structured code that's easy to test
+
+### Key Guidelines
+
+1. **Architecture Philosophy**: Medallion Architecture (Bronze/Silver/Gold) with clear separation of concerns
+2. **Coding Style**: Python Black formatter, Google-style docstrings, and mandatory type hints
+3. **File Organization**: Modular structure with clear responsibilities
+4. **Testing Strategy**: Comprehensive unit, integration, and end-to-end tests
+5. **Deployment Best Practices**: Local development, cloud deployment, and scaling considerations
+
+### How to Use
+
+```bash
+# View the complete coding guidelines
+cat VIBE_CODING.md
+```
+
+These guidelines are enforced across all project components to ensure a cohesive, professional codebase that follows enterprise data engineering best practices.
 
 ---
 
@@ -141,31 +271,65 @@ cd dw-dashboard
 pip install -r requirements.txt
 ```
 
-### 3. Execution Workflow (Standard Batch)
-Follow these steps in order to see the full data lifecycle:
-
-1.  **Generate Data**: `python scripts/init_raw_data.py` (Creates messy data in `data/raw`)
-2.  **Process ETL**: `python scripts/run_batch_etl.py` (Moves data through Bronze → Silver → Gold)
-3.  **View Dashboard**: `python scripts/run_dashboard.py` (Launches UI at `localhost:8501`)
-
 ---
 
-## 🌊 Streaming Strategy
+## 📖 Full Command Reference
 
-The project supports three streaming architectures:
-1.  **File-Based**: Monitors a directory for new files (No Kafka required).
-2.  **Simple Kafka**: Uses an in-memory Python broker (Best for Streamlit Cloud).
-3.  **Production Kafka**: Full integration with Zookeeper and Kafka brokers (Requires Docker).
+### 🏗️ Batch Pipeline
+Run the full Medallion workflow from raw data to curated insights.
+```bash
+# 1. Generate messy raw data (CSV/JSON/Parquet)
+python src/batch/bootstrap.py
 
-*See the [Real-Time Streaming Guide](docs/STREAMING_GUIDE.md) for advanced setup.*
+# 2. Execute ETL (Bronze -> Silver -> Gold)
+python scripts/run_batch.py
 
----
+# 3. Launch Batch Dashboard
+python scripts/run_dashboard.py batch
+```
 
-## 📈 Business Use Cases
-- **Marketing**: Target "High Value" segments identified by RFM.
-- **Operations**: Monitor real-time order volume to identify bottlenecks.
-- **Finance**: Track revenue anomalies to detect billing issues.
-- **Governance**: Monitor DQ scores to ensure report reliability.
+### 🌊 Streaming Pipelines
+Choose between the lightweight "Simple" broker or enterprise Spark streaming.
+
+#### Option A: Simple Kafka (REST Proxy)
+Perfect for local development and cloud deployments (e.g., Streamlit Cloud).
+```bash
+# Launch full stack (Server + Generator + Dashboard)
+python scripts/run_streaming_simple.py
+
+# Manually launch components (Optional)
+python -m src.streaming.simple.server serve    # Start Broker
+python src.streaming.simple.generator.py       # Start Generator
+python scripts/run_dashboard.py simple         # Start Monitor
+```
+
+#### Option B: Spark Structured Streaming
+Enterprise-grade streaming using file-based or Kafka sources.
+```bash
+# Start file-based streaming (reads from data/streaming/)
+python scripts/run_streaming_spark.py --mode file
+
+# Start Kafka-based streaming (requires local Kafka)
+python scripts/run_streaming_spark.py --mode kafka
+
+# Start Real-Time Dashboard
+python scripts/run_dashboard.py spark
+```
+
+### 🔍 Data Inspection & Maintenance
+Utilities to peek under the hood and verify the environment.
+```bash
+# Inspect Simple Kafka broker state
+python scripts/inspect_simple_kafka.py topics     # List topics
+python scripts/inspect_simple_kafka.py messages   # View latest messages
+python scripts/inspect_simple_kafka.py offsets    # View consumer progress
+
+# Run environment pre-flight checks
+python tests/test_environment.py
+
+# Run dashboard E2E compatibility tests
+python tests/test_dashboard.py
+```
 
 ---
 

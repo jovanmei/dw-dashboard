@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 # Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -29,12 +29,12 @@ from pyspark.sql.functions import (
     expr, when, approx_count_distinct, collect_list, struct, coalesce
 )
 from pyspark.sql.types import (
-    StructType, StructField, StringType, IntegerType, 
-    DoubleType, TimestampType, LongType
+    StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, ArrayType
 )
+from pyspark.sql.window import Window
 
-from config.settings import PATHS
-from config.spark_config import create_spark_session
+from src.config.settings import PATHS
+from src.config.spark_config import create_spark_session
 
 
 # Define schemas for streaming data

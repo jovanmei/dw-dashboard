@@ -16,8 +16,8 @@ def main():
     
     # Import and run the main pipeline
     try:
-        import batch_etl_pipeline
-        batch_etl_pipeline.run_pipeline()
+        from src.batch import pipeline
+        pipeline.run_pipeline()
     except ImportError:
         print("Main pipeline not found. Please check file organization.")
     except Exception as e:
