@@ -10,6 +10,7 @@ from __future__ import annotations
 import time
 import sys
 import os
+import requests
 from typing import Optional, Dict, List
 
 # Add project root to path if not already there
@@ -25,13 +26,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Import Simple Kafka components - only import the module, don't initialize yet
-try:
-    from src.streaming.simple.server import get_server, SimpleKafkaConsumer, start_simple_kafka_server
-    SIMPLE_KAFKA_AVAILABLE = True
-    # Don't attempt to connect at import time - this causes issues when server isn't available
-except ImportError:
-    SIMPLE_KAFKA_AVAILABLE = False
+# Server configuration
+SERVER_URL = "http://localhost:5051"
 
 
 def safe_plotly_chart(fig, **kwargs):
@@ -63,14 +59,7 @@ def generate_sample_data():
             st.experimental_rerun()
         return True
     
-    # Only attempt actual message generation in live mode
-    if not SIMPLE_KAFKA_AVAILABLE:
-        st.error("❌ Cannot generate data in live mode without Simple Kafka server")
-        st.info("Switch to Demo Mode to use sample data")
-        return False
-    
     try:
-        from src.streaming.simple.server import SimpleKafkaProducer
         import json
         from datetime import datetime
         import random
@@ -78,16 +67,7 @@ def generate_sample_data():
         # Debug: Print connection attempt
         st.write("🔧 Attempting to connect to Simple Kafka server...")
         
-        producer = SimpleKafkaProducer(
-            bootstrap_servers='http://localhost:5051',
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
-        )
-        
-        # Debug: Confirm connection
-        st.write("✅ Producer created successfully")
-        
-        # Generate sample orders
-        st.write("📊 Generating sample data...")
+        # Generate and send messages using REST API
         generated_count = 0
         
         for i in range(20):
@@ -111,9 +91,10 @@ def generate_sample_data():
                 'source_system': 'demo_data'
             }
             
-            # Send the order
-            result = producer.send('ecommerce_orders', order)
-            generated_count += 1
+            # Send the order using REST API
+            response = requests.post(f"{SERVER_URL}/produce/ecommerce_orders", json={'value': order})
+            if response.status_code == 200:
+                generated_count += 1
             
             # Generate customer event (30% chance)
             if random.random() < 0.3:
@@ -125,8 +106,9 @@ def generate_sample_data():
                     'customer_segment': random.choice(['Bronze', 'Silver', 'Gold', 'Platinum']),
                     'event_timestamp': datetime.now().isoformat()
                 }
-                producer.send('ecommerce_customers', customer)
-                generated_count += 1
+                response = requests.post(f"{SERVER_URL}/produce/ecommerce_customers", json={'value': customer})
+                if response.status_code == 200:
+                    generated_count += 1
             
             # Generate order items (1-3 per order)
             num_items = random.randint(1, 3)
@@ -142,8 +124,9 @@ def generate_sample_data():
                     'unit_price': round(total_amount / (num_items * 2), 2),
                     'total_price': round(total_amount / num_items, 2)
                 }
-                producer.send('ecommerce_order_items', item)
-                generated_count += 1
+                response = requests.post(f"{SERVER_URL}/produce/ecommerce_order_items", json={'value': item})
+                if response.status_code == 200:
+                    generated_count += 1
             
             # Generate fraud alert (15% chance)
             if random.random() < 0.15 or total_amount > 2000:
@@ -160,12 +143,9 @@ def generate_sample_data():
                     'total_amount': total_amount,
                     'requires_review': fraud_score >= 4
                 }
-                producer.send('ecommerce_fraud_alerts', alert)
-                generated_count += 1
-        
-        # Flush and close properly
-        producer.flush()
-        producer.close()
+                response = requests.post(f"{SERVER_URL}/produce/ecommerce_fraud_alerts", json={'value': alert})
+                if response.status_code == 200:
+                    generated_count += 1
         
         st.write(f"✅ Generated {generated_count} sample events!")
         
@@ -230,28 +210,54 @@ def get_simple_kafka_status():
             'total_messages': 533
         }
     
-    if not SIMPLE_KAFKA_AVAILABLE:
-        return {}
-    
+    # Check server status using REST API directly for better reliability
     try:
-        # Try to connect to the REST server if it's running
-        server = get_server(bootstrap_servers='http://localhost:5051')
-        topics = server.list_topics()
-        
-        status = {
-            'server_running': True,
-            'topics': {},
-            'total_messages': 0
-        }
-        
-        for topic in topics:
-            topic_info = server.get_topic_info(topic)
-            status['topics'][topic] = topic_info
-            status['total_messages'] += topic_info.get('total_messages', 0)
-        
-        return status
-        
+        import requests
+        # Try to connect to the REST server
+        response = requests.get('http://localhost:5051/topics', timeout=2)
+        if response.status_code == 200:
+            topics = response.json()
+            
+            status = {
+                'server_running': True,
+                'topics': {},
+                'total_messages': 0
+            }
+            
+            # Get detailed info for each topic
+            for topic in topics:
+                topic_response = requests.get(f'http://localhost:5051/topics/{topic}', timeout=2)
+                if topic_response.status_code == 200:
+                    topic_info = topic_response.json()
+                    status['topics'][topic] = topic_info
+                    status['total_messages'] += topic_info.get('total_messages', 0)
+            
+            return status
+        else:
+            return {'error': f'HTTP {response.status_code}', 'server_running': False}
+    
     except Exception as e:
+        # Fall back to using the imported server module if REST API fails
+        try:
+            if SIMPLE_KAFKA_AVAILABLE:
+                server = get_server(bootstrap_servers='http://localhost:5051')
+                topics = server.list_topics()
+                
+                status = {
+                    'server_running': True,
+                    'topics': {},
+                    'total_messages': 0
+                }
+                
+                for topic in topics:
+                    topic_info = server.get_topic_info(topic)
+                    status['topics'][topic] = topic_info
+                    status['total_messages'] += topic_info.get('total_messages', 0)
+                
+                return status
+        except Exception as module_e:
+            pass
+        
         return {'error': str(e), 'server_running': False}
 
 
@@ -388,24 +394,28 @@ def load_simple_kafka_messages(topic: str, limit: int = 1000) -> Optional[pd.Dat
         
         return df
     
-    # Original implementation for live mode
-    if not SIMPLE_KAFKA_AVAILABLE:
-        return None
-    
+    # Live mode: Use REST API directly
     try:
-        # Use REST server for loading messages
-        server = get_server(bootstrap_servers='http://localhost:5051')
+        # Get topic info to determine partition count
+        topic_info_response = requests.get(f"{SERVER_URL}/topics/{topic}")
+        if topic_info_response.status_code != 200:
+            return None
+        
+        topic_info = topic_info_response.json()
+        partition_count = topic_info.get('partition_count', 1)
         
         # Get messages from all partitions
         all_messages = []
-        topic_info = server.get_topic_info(topic)
         
-        if 'error' in topic_info:
-            return None
-        
-        for partition in topic_info.get('partitions', {}):
-            messages = server.consume_messages(topic, partition)
-            all_messages.extend(messages)
+        for partition in range(partition_count):
+            # Get messages for this partition
+            messages_response = requests.get(
+                f"{SERVER_URL}/consume/{topic}",
+                params={'partition': partition, 'limit': limit}
+            )
+            if messages_response.status_code == 200:
+                messages = messages_response.json()
+                all_messages.extend(messages)
         
         if not all_messages:
             return None
@@ -504,31 +514,25 @@ def create_simple_kafka_status_section():
     """Display Simple Kafka server status."""
     st.header("🔄 Simple Kafka Status")
     
-    if not SIMPLE_KAFKA_AVAILABLE:
-        st.error("❌ Simple Kafka server not available")
-        st.info("""
-        **Simple Kafka is not available in this environment.**
-        
-        This dashboard requires the Simple Kafka in-memory message broker.
-        For local development, run:
-        ```bash
-        python run_simple_kafka_pipeline.py
-        ```
-        """)
-        return
-    
     status = get_simple_kafka_status()
     
     if not status.get('server_running', False):
         st.error("❌ Simple Kafka server not running")
         
-        # Try to initialize server
+        # Show error details if available
+        if 'error' in status:
+            st.info(f"Error: {status['error']}")
+        
+        # Try to initialize server - this will only work if the module is available locally
         if st.button("🚀 Initialize Simple Kafka Server"):
             try:
+                # Only attempt this if we can import the server module
                 from src.streaming.simple.server import start_simple_kafka_server
                 start_simple_kafka_server()
                 st.success("✅ Server initialized!")
                 st.rerun()
+            except ImportError:
+                st.error("Cannot initialize server: Simple Kafka module not available")
             except Exception as e:
                 st.error(f"Failed to initialize server: {e}")
         
@@ -1115,20 +1119,32 @@ def main():
         st.sidebar.subheader("🚀 Quick Start")
         st.sidebar.info("Click 'Initialize Simple Kafka Server' in the Server Status tab to get started")
     
-    # If in demo mode, we don't need to check SIMPLE_KAFKA_AVAILABLE
-    if not st.session_state.demo_mode and not SIMPLE_KAFKA_AVAILABLE:
-        st.error("❌ Simple Kafka server not available")
-        st.info("""
-        **Simple Kafka is not available in this environment.**
-        
-        This dashboard is currently in live mode but cannot connect to a Simple Kafka server.
-        
-        **Options:**
-        1. **Switch to Demo Mode** - Use the toggle in settings to enable sample data
-        2. **For local development:**
-           - Run: `python scripts/run_streaming_simple.py`
-        """)
-        return
+    # Check server status directly for live mode
+    if not st.session_state.demo_mode:
+        try:
+            import requests
+            response = requests.get('http://localhost:5051/topics', timeout=2)
+            if response.status_code != 200:
+                raise Exception(f"HTTP {response.status_code}")
+        except Exception as e:
+            st.error("❌ Simple Kafka server not available")
+            error_msg = f"""
+            **Simple Kafka is not available in this environment.**
+            
+            This dashboard is currently in live mode but cannot connect to a Simple Kafka server.
+            
+            **Options:**
+            1. **Switch to Demo Mode** - Use the toggle in settings to enable sample data
+            2. **For local development:**
+               - Run: `python scripts/run_streaming_simple.py`
+            
+            **Debug info:**
+            - Server URL: http://localhost:5051
+            - Error: {e}
+            """
+            st.info(error_msg, unsafe_allow_html=True)
+            return
+    
     
     # Navigation tabs
     st.markdown("---")
